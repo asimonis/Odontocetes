@@ -1,6 +1,6 @@
 #Extract HP sensitivity information from Inventory and DeploymentDetails worksheets
 
-library(xlsx)
+# library(xlsx)
 library(dplyr)
 library(here)
 
@@ -12,7 +12,7 @@ DeployDetails<-read.csv(here('data','Deployment Details.csv'),header=TRUE)
 Array<-read.csv(here('data','Inventory_array.csv'),header=TRUE)
 Sens<-read.csv(here('data','Inventory_hydrophones.csv'),header=TRUE)
 
-DepID<-'ADRIFT_018'
+DepID<-'ADRIFT_023'
 
 DepIDDetails<-DeployDetails %>% 
   filter(Data_ID==DepID) 

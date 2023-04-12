@@ -35,6 +35,7 @@ Events$EndTime<-as.POSIXct(Events$EventEnd,format="%Y-%m-%d %H:%M:%OS", tz="UTC"
 Events<-select(Events,StartTime,EndTime,Id,UID,eventType,nClicks,minNumber,bestNumber,maxNumber)
 Events<-rename(Events,species=eventType)
 
+if(nrow(Events)>0){
 for(e in 1:nrow(Events)){
   TD<-as.numeric(difftime(Events$StartTime[e],GPS$dateTime,units="min"))
   GPSind<-which.min(abs(TD))
@@ -44,10 +45,9 @@ for(e in 1:nrow(Events)){
 Events$Project<-Project
 Events$Deployment<-as.numeric(str_extract(DBFiles[dbInd], "(?i)(?<=Drift-)\\d+"))
 
-dbDisconnect(conn)
-
 #Aggregate into single dataframe
-EventInfo<-rbind(EventInfo,Events)
+EventInfo<-rbind(EventInfo,Events)}
+dbDisconnect(conn)
 }
 
 save(EventInfo,file='CCES2018_BW_Detections.rda')
