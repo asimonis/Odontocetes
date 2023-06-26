@@ -7,10 +7,10 @@ library(PAMpal)
 library(stringr)
 
 Project<-'CCES'
-speciesID<-c("ZC","BB","MS","BW43","BW37V","BWC","BW","?BW")
+speciesID<-c("ZC","BB","MS","BW43","BW37V","BWC","BW","?BW","PM")
   
 #Directory with all databases
-DBDir='H:/CCES/CCES PAMGUARD Analyses 2_00_16/Databases/Final Databases_wGPS'
+DBDir='D:/CCES/CCES BW DB Updated GPS TSakai'
 setwd(DBDir)
 DBFiles<-dir(DBDir,pattern='.sqlite3')
 
@@ -50,4 +50,4 @@ EventInfo<-rbind(EventInfo,Events)}
 dbDisconnect(conn)
 }
 
-save(EventInfo,file='CCES2018_BW_Detections.rda')
+save(EventInfo,file='CCES2018_BW_and_PM_Detections.rda')
