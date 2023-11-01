@@ -1,0 +1,152 @@
+---
+title: "NBHF Classification"
+author: "Anne Simonis"
+format: docx
+editor: visual
+---
+
+```{r}
+#| warning: false
+#| echo: false
+
+#Load required packages and functions
+library(here)
+library(PAMpal)
+library(ggplot2)
+
+source(here('R','Matched Click Template Detector','matchTemplateFunctions.R'))
+```
+
+# Goal: Determine if default harbor porpoise click template is sufficient to identify events for harbor porpoises, Dall's porpoises, and Kogia spp. 
+
+## NBHF Click Detection
+
+Pamguard Beta v2.02.09 was used to run a standard NBHF click detector on the following ground truth recordings, and events were manually defined as Kogia spp. (Ksp), Dall's porpoise (Pd), or harbor porpoise (Pp).
+
+| Kogia spp. | Dall's Porpoise        | Harbor Porpoise        |
+|------------|------------------------|------------------------|
+| CCES_022   | CalCURSeas towed array | OPPS_010               |
+|            |                        | CalCURSeas towed array |
+
+## Calculate matched template scores for each click detection
+
+In Pamguard Viewer, add the matched template classifier module. Define the settings as follows:
+
+In general classifier settings, set the Channel Options to "Require positive identification on only one channel".
+
+Set the Match threshold to 0.15.
+
+Select the default harbor porpoise click for the match template, and use 'none' for the reject template.
+
+![](Matched%20Click%20Template%20Detector/NBHF_MTC_module.png)
+
+### Load the detection data into R
+
+```{r}
+#Define database and binary location for each deployment
+#Dall's porpoise
+db_Pd_Calcurseas <- 'H:/Odontocetes/NBHF/Databases/CalCURSeas_Dalls - Copy.sqlite3'
+binFolder_Pd_Calcurseas <- 'H:/Odontocetes/NBHF/Binaries/CalCURSeas_Dalls - Copy'
+
+#Harbor porpoise
+db_Pp_Calcurseas <- 'H:/Odontocetes/NBHF/Databases/CalCURSeas_Harbor - Copy.sqlite3'
+binFolder_Pp_Calcurseas <- 'H:/Odontocetes/NBHF/Binaries/CalCURSeas_Harbor - Copy'
+
+db_Pp_OPPS_010 <- 'H:/Odontocetes/NBHF/Databases/OPPS_010_NBHF - Copy.sqlite3'
+binFolder_Pp_OPPS_010 <- 'H:/Odontocetes/NBHF/Binaries/OPPS_010 - Copy'
+
+#Kogia spp
+db_Ksp <- 'H:/Odontocetes/NBHF/Databases/CCES_022.sqlite3'
+binFolder_Ksp <- 'H:/Odontocetes/NBHF/Binaries/CCES_022'
+
+#Define Template parameters
+extraCols <- c(paste0(templateNames, '_match'))
+
+#Default template name
+templateNames <- c("NBHF") #Pamguard default harbor porpoise click template 
+
+#Load in MTC scores for each deployment
+PdCalcurseas <- loadTemplateFolder(binFolder_Pd_Calcurseas, names=templateNames, extraCols=extraCols, file='H:/Odontocetes/NBHF/MTC/CalCurseas_Dalls_Template.rds')
+
+PpCalcurseas<- loadTemplateFolder(binFolder_Pp_Calcurseas, names=templateNames, extraCols=extraCols, file='H:/Odontocetes/NBHF/MTC/CalCurseas_Harbor_Template.rds')
+
+PpOPPS_010<-loadTemplateFolder(binFolder_Pp_OPPS_010, names=templateNames, extraCols=extraCols, file='H:/Odontocetes/NBHF/MTC/OPPS_010_Template.rds')
+
+Ksp_CCES_022<-loadTemplateFolder(binFolder_Ksp , names=templateNames, extraCols=extraCols, file='H:/Odontocetes/NBHF/MTC/CCES_022_Template.rds')
+
+
+# #Load in click detection data from each deployment
+# PdCalcurseas<-readRDS('H:/Odontocetes/NBHF/MTC/CalCurseas_Dalls_Template.rds')
+# PpCalcurseas<-readRDS('H:/Odontocetes/NBHF/MTC/CalCurseas_Harbor_Template.rds')
+# PpOPPS_010<-readRDS('H:/Odontocetes/NBHF/MTC/OPPS_010_Template.rds')
+# Ksp_CCES_022<-readRDS('H:/Odontocetes/NBHF/MTC/CCES_022_Template.rds')
+
+```
+
+### MTC-defined events
+
+Define potential events based on the presence of 3 or more clicks with MTC score \>0.15
+
+and occur within 120 seconds.
+
+Goal: MTC event definition will identify all manually identified events.
+
+```{r}
+#MTC threshold value 
+threshVals <- c(.15)
+
+#Add template labels
+#Dall's
+PdCalcurseas <- addTemplateLabels(PdCalcurseas, db_Pd_Calcurseas, templateNames, threshVals)
+#Harbor porpoise
+PpCalcurseas <- addTemplateLabels(PpCalcurseas, db_Pp_Calcurseas, templateNames, threshVals)
+PpOPPS_010 <- addTemplateLabels(PpOPPS_010, db_Pp_OPPS_010, templateNames, threshVals)
+#Kogia
+Ksp_CCES_022<- addTemplateLabels(Ksp_CCES_022, db_Ksp, templateNames, threshVals)
+
+# nDets is minimum detections to count as an event, nSeconds is max time between detections before an event is ended
+PdCalcurseas <- markGoodEvents(PdCalcurseas, nDets=3, nSeconds=120)
+PpCalcurseas <- markGoodEvents(PpCalcurseas, nDets=3, nSeconds=120)
+PpOPPS_010<- markGoodEvents(PpOPPS_010, nDets=3, nSeconds=120)
+Ksp_CCES_022<- markGoodEvents(Ksp_CCES_022, nDets=3, nSeconds=120)
+
+# summary of how many of the detections in manually annotated events were tagged by template
+manualSummary_Pd <- summariseManualEvents(PdCalcurseas)
+manualSummary_Pp <- summariseManualEvents(PpCalcurseas)
+manualSummary_PpOPPS_010 <- summariseManualEvents(PpOPPS_010)
+manualSummary_Ksp<- summariseManualEvents(Ksp_CCES_022)
+
+ggplot(manualSummary_Ksp,aes(nDets,pctTemplate))+geom_point()+
+  ylab('Average MTC score')+xlab('Total click detections in event')+
+  ggtitle('Kogia manually defined events: \n Number of clicks vs. average MTC score ')
+
+
+```
+
+The MTC event definition will also identify some events that were not labeled manually. These are false positives.
+
+```{r}
+# summary of how many detections tagged by template were present in manually annotated events
+templateSummary_Pd <- summariseTemplateEvents(PdCalcurseas)
+templateSummary_Pp_Calcurseas <- summariseTemplateEvents(PpCalcurseas)
+templateSummary_Pp_OPPS_010 <- summariseTemplateEvents(PpOPPS_010)
+templateSummary_Ksp <- summariseTemplateEvents(Ksp_CCES_022)
+```
+
+### Next steps: 
+
+1.  Run click detector on CCES Kogia using PG v2.02.09 since CCES drifts were previously run with older version of PG
+2.  Add MTC module to all training data
+3.  Define events based on established criteria; add new events to database
+4.  Use Pamguard Viewer to review and label events as harbor porpoise ('Pp'), Dall's porpoise ('Pd'), Kogia spp. ('Ksp'), or false positive ('FP'). It's OK if the event contains some individual false click detections. What matters is if there are any actual NBHF click detections within the event.
+5.  Use PAMpal to generate acoustic studies from all training data
+6.  Train and evaluate banter models at detection and event levels
+
+```{r}
+
+#Add events based on MTC scores using 'addTemplateEvents' function
+addTemplateEvents(db_Pd_Calcurseas, binFolder_Pd_Calcurseas, PdCalcurseas)
+addTemplateEvents(db_Pp_Calcurseas, binFolder_Pp_Calcurseas, PpCalcurseas)
+addTemplateEvents(db_Pp_OPPS_010, binFolder_Pp_OPPS_010, PpOPPS_010)
+addTemplateEvents(db_Ksp, binFolder_Ksp, Ksp_CCES_022)
+```
