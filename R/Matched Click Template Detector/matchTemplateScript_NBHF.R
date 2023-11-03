@@ -5,20 +5,20 @@ source(here('R','Matched Click Template Detector','matchTemplateFunctions.R'))
 
 
 ###USER-DEFINED FIELDS####
-DriftName<-'CalCurseas_Dalls'
-binFolder <- 'H:/Odontocetes/NBHF/Binaries/CalCURSeas_Dalls - Copy'
+DriftName<-'OPPS_010'
+binFolder <- 'H:/Odontocetes/NBHF/Binaries/OPPS_010 - Copy'
 # this database should be a COPY of the original because we will add events to it later
-db <- 'H:/Odontocetes/NBHF/Databases/CalCURSeas_Dalls - Copy.sqlite3'
+db <- 'H:/Odontocetes/NBHF/Databases/OPPS_010_NBHF - Copy.sqlite3'
 ###########################
 
 
 # change if the set of templates changes
-templateNames <- c("Pp")
+templateNames <- c("NBHF")
 # keeping the match/reject values just in case they are useful, but
 # can remove these in future if they aren't necessary
 extraCols <- c(paste0(templateNames, '_match'))
 
-baseDir <- 'H:/Odontocetes/NBHF/New Folder'
+baseDir <- 'H:/Odontocetes/NBHF/MTC'
 
 # the binary processing takes a really long time, this automatically saves to an RDS file
 # so that you don't have to reprocess in future
@@ -40,11 +40,11 @@ templateSummary_t.15 <- summariseTemplateEvents(allData_t.15)
 
 # adds events meeting nDets/nSeconds criteria to the database
 # make sure db is a COPY of the original for safety
-addTemplateEvents(db, binFolder, allData)
+addTemplateEvents(db, binFolder, allData_t.15)
 
 ### OPTIONAL process again with PAMpal to do stuff ###
 library(PAMpal)
-pps <- PAMpalSettings(db, binFolder, sr_hz=576000, filterfrom_khz=100, filterto_khz=160, winLen_sec=.0025)
+pps <- PAMpalSettings(db, binFolder, sr_hz='auto', filterfrom_khz=100, filterto_khz=160, winLen_sec=.0025)
 data <- processPgDetections(pps, mode='db', id=paste0('MatchTemp_',DriftName))
 data <- setSpecies(data, method = 'pamguard')
 # new "FP" and "TP" events in addition to originals

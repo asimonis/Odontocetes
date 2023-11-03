@@ -17,7 +17,7 @@ library(ggplot2)
 source(here('R','Matched Click Template Detector','matchTemplateFunctions.R'))
 ```
 
-# Goal: Determine if default harbor porpoise click template is sufficient to identify events for harbor porpoises, Dall's porpoises, and Kogia spp. 
+# Goal: Determine if default harbor porpoise click template is sufficient to identify events for harbor porpoises, Dall's porpoises, and Kogia spp.
 
 ## NBHF Click Detection
 
@@ -38,8 +38,6 @@ Set the Match threshold to 0.15.
 
 Select the default harbor porpoise click for the match template, and use 'none' for the reject template.
 
-![](Matched%20Click%20Template%20Detector/NBHF_MTC_module.png)
-
 ### Load the detection data into R
 
 ```{r}
@@ -48,16 +46,25 @@ Select the default harbor porpoise click for the match template, and use 'none' 
 db_Pd_Calcurseas <- 'H:/Odontocetes/NBHF/Databases/CalCURSeas_Dalls - Copy.sqlite3'
 binFolder_Pd_Calcurseas <- 'H:/Odontocetes/NBHF/Binaries/CalCURSeas_Dalls - Copy'
 
+db_Pd_Bangarang <- 'H:/Odontocetes/NBHF/Databases/Bangarang.sqlite3'
+binFolder_Pd_Bangarang <- 'H:/Odontocetes/NBHF/Binaries/Bangarang'
+
+db_Pd_PASCAL <- 'H:/Odontocetes/NBHF/Databases/PASCAL_Dalls - Copy.sqlite3'
+binFolder_Pd_PASCAL <- 'H:/Odontocetes/NBHF/Binaries/PASCAL_Dalls - Copy'
+
 #Harbor porpoise
 db_Pp_Calcurseas <- 'H:/Odontocetes/NBHF/Databases/CalCURSeas_Harbor - Copy.sqlite3'
 binFolder_Pp_Calcurseas <- 'H:/Odontocetes/NBHF/Binaries/CalCURSeas_Harbor - Copy'
+
+db_Pp_OPPS_008 <- 'H:/Odontocetes/NBHF/Databases/OPPS_008 - Copy.sqlite3'
+binFolder_Pp_OPPS_008 <- 'H:/Odontocetes/NBHF/Binaries/OPPS_008 - Copy'
 
 db_Pp_OPPS_010 <- 'H:/Odontocetes/NBHF/Databases/OPPS_010_NBHF - Copy.sqlite3'
 binFolder_Pp_OPPS_010 <- 'H:/Odontocetes/NBHF/Binaries/OPPS_010 - Copy'
 
 #Kogia spp
-db_Ksp <- 'H:/Odontocetes/NBHF/Databases/CCES_022.sqlite3'
-binFolder_Ksp <- 'H:/Odontocetes/NBHF/Binaries/CCES_022'
+db_Ksp <- 'H:/Odontocetes/NBHF/Databases/PG2_02_09_CCES_022_Ksp.sqlite3'
+binFolder_Ksp <- 'H:/Odontocetes/NBHF/Binaries/PG2_02_09_CCES_022_Ksp'
 
 #Define Template parameters
 extraCols <- c(paste0(templateNames, '_match'))
@@ -65,21 +72,30 @@ extraCols <- c(paste0(templateNames, '_match'))
 #Default template name
 templateNames <- c("NBHF") #Pamguard default harbor porpoise click template 
 
-#Load in MTC scores for each deployment
-PdCalcurseas <- loadTemplateFolder(binFolder_Pd_Calcurseas, names=templateNames, extraCols=extraCols, file='H:/Odontocetes/NBHF/MTC/CalCurseas_Dalls_Template.rds')
-
-PpCalcurseas<- loadTemplateFolder(binFolder_Pp_Calcurseas, names=templateNames, extraCols=extraCols, file='H:/Odontocetes/NBHF/MTC/CalCurseas_Harbor_Template.rds')
-
-PpOPPS_010<-loadTemplateFolder(binFolder_Pp_OPPS_010, names=templateNames, extraCols=extraCols, file='H:/Odontocetes/NBHF/MTC/OPPS_010_Template.rds')
-
-Ksp_CCES_022<-loadTemplateFolder(binFolder_Ksp , names=templateNames, extraCols=extraCols, file='H:/Odontocetes/NBHF/MTC/CCES_022_Template.rds')
+# #Load in MTC scores for each deployment
+# PdCalcurseas <- loadTemplateFolder(binFolder_Pd_Calcurseas, names=templateNames, extraCols=extraCols, file='H:/Odontocetes/NBHF/MTC/CalCurseas_Dalls_Template.rds')
+# 
+# PdBangarang <- loadTemplateFolder(binFolder_Pd_Bangarang, names=templateNames, extraCols=extraCols, file='H:/Odontocetes/NBHF/MTC/Bangarang.rds')
+# 
+# PdPascal <- loadTemplateFolder(binFolder_Pd_PASCAL, names=templateNames, extraCols=extraCols, file='H:/Odontocetes/NBHF/MTC/PdPascal.rds')
+# 
+# PpCalcurseas<- loadTemplateFolder(binFolder_Pp_Calcurseas, names=templateNames, extraCols=extraCols, file='H:/Odontocetes/NBHF/MTC/CalCurseas_Harbor_Template.rds')
+# 
+# PpOPPS_010<-loadTemplateFolder(binFolder_Pp_OPPS_010, names=templateNames, extraCols=extraCols, file='H:/Odontocetes/NBHF/MTC/OPPS_010_Template.rds')
+# 
+# PpOPPS_008<-loadTemplateFolder(binFolder_Pp_OPPS_008, names=templateNames, extraCols=extraCols, file='H:/Odontocetes/NBHF/MTC/OPPS_008_Template.rds')
+# 
+# Ksp_CCES_022<-loadTemplateFolder(binFolder_Ksp , names=templateNames, extraCols=extraCols, file='H:/Odontocetes/NBHF/MTC/CCES_022_Template.rds')
 
 
 # #Load in click detection data from each deployment
-# PdCalcurseas<-readRDS('H:/Odontocetes/NBHF/MTC/CalCurseas_Dalls_Template.rds')
-# PpCalcurseas<-readRDS('H:/Odontocetes/NBHF/MTC/CalCurseas_Harbor_Template.rds')
-# PpOPPS_010<-readRDS('H:/Odontocetes/NBHF/MTC/OPPS_010_Template.rds')
-# Ksp_CCES_022<-readRDS('H:/Odontocetes/NBHF/MTC/CCES_022_Template.rds')
+PdCalcurseas<-readRDS(here('data','MTC','CalCurseas_Dalls_Template.rds'))
+PdBangarang<-readRDS(here('data','MTC','Bangarang.rds'))
+PdPascal<-readRDS(here('data','MTC','PdPascal.rds'))
+PpCalcurseas<-readRDS(here('data','MTC','CalCurseas_Harbor_Template.rds'))
+PpOPPS_010<-readRDS(here('data','MTC','OPPS_010_Template.rds'))
+PpOPPS_008<-readRDS(here('data','MTC','OPPS_008_Template.rds'))
+Ksp_CCES_022<-readRDS(here('data','MTC','CCES_022_Template.rds'))
 
 ```
 
@@ -93,25 +109,32 @@ Goal: MTC event definition will identify all manually identified events.
 
 ```{r}
 #MTC threshold value 
-threshVals <- c(.15)
+threshVals <- c(.25)
 
 #Add template labels
 #Dall's
 PdCalcurseas <- addTemplateLabels(PdCalcurseas, db_Pd_Calcurseas, templateNames, threshVals)
+PdBangarang <- addTemplateLabels(PdBangarang, db_Pd_Bangarang, templateNames, threshVals)
+PdPascal <- addTemplateLabels(PdPascal, db_Pd_PASCAL, templateNames, threshVals)
 #Harbor porpoise
 PpCalcurseas <- addTemplateLabels(PpCalcurseas, db_Pp_Calcurseas, templateNames, threshVals)
+PpOPPS_008 <- addTemplateLabels(PpOPPS_008, db_Pp_OPPS_008, templateNames, threshVals)
 PpOPPS_010 <- addTemplateLabels(PpOPPS_010, db_Pp_OPPS_010, templateNames, threshVals)
 #Kogia
 Ksp_CCES_022<- addTemplateLabels(Ksp_CCES_022, db_Ksp, templateNames, threshVals)
 
 # nDets is minimum detections to count as an event, nSeconds is max time between detections before an event is ended
 PdCalcurseas <- markGoodEvents(PdCalcurseas, nDets=3, nSeconds=120)
+PdBangarang <- markGoodEvents(PdBangarang, nDets=3, nSeconds=120)
+PdPascal <- markGoodEvents(PdPascal, nDets=3, nSeconds=120)
 PpCalcurseas <- markGoodEvents(PpCalcurseas, nDets=3, nSeconds=120)
 PpOPPS_010<- markGoodEvents(PpOPPS_010, nDets=3, nSeconds=120)
 Ksp_CCES_022<- markGoodEvents(Ksp_CCES_022, nDets=3, nSeconds=120)
 
 # summary of how many of the detections in manually annotated events were tagged by template
 manualSummary_Pd <- summariseManualEvents(PdCalcurseas)
+manualSummary_PdBangarang <- summariseManualEvents(PdBangarang)
+manualSummary_PdPascal <- summariseManualEvents(PdPascal)
 manualSummary_Pp <- summariseManualEvents(PpCalcurseas)
 manualSummary_PpOPPS_010 <- summariseManualEvents(PpOPPS_010)
 manualSummary_Ksp<- summariseManualEvents(Ksp_CCES_022)
@@ -128,12 +151,14 @@ The MTC event definition will also identify some events that were not labeled ma
 ```{r}
 # summary of how many detections tagged by template were present in manually annotated events
 templateSummary_Pd <- summariseTemplateEvents(PdCalcurseas)
+templateSummary_PdBangarang <- summariseTemplateEvents(PdBangarang)
+templateSummary_PdPascal <- summariseTemplateEvents(PdPascal)
 templateSummary_Pp_Calcurseas <- summariseTemplateEvents(PpCalcurseas)
 templateSummary_Pp_OPPS_010 <- summariseTemplateEvents(PpOPPS_010)
 templateSummary_Ksp <- summariseTemplateEvents(Ksp_CCES_022)
 ```
 
-### Next steps: 
+### Next steps:
 
 1.  Run click detector on CCES Kogia using PG v2.02.09 since CCES drifts were previously run with older version of PG
 2.  Add MTC module to all training data
