@@ -202,5 +202,29 @@ addTemplateEvents(db_Ksp_CCES_023, binFolder_Ksp_CCES_023, Ksp_CCES_023)
 2.  Use PAMpal to generate acoustic studies from all training data
     1.  For PAMpal settings: filter between 100-160 kHz
 
-    2.  Consider removing click detections based on received level, bw_3dB or bw_10dB, duration
-3.  Train and evaluate banter models at detection and event levels
+        ```{r}
+        DriftName <-'CCES_022' #example 
+
+        library(PAMpal)
+        pps <- PAMpalSettings(db, binFolder, sr_hz='auto', filterfrom_khz=100, filterto_khz=160, winLen_sec=.0025)
+        CCES_022 <- processPgDetections(pps, mode='db', id=DriftName)
+        CCES_022 <- setSpecies(CCES_022, method = 'pamguard')
+        ```
+
+    2.  Consider removing click detections based on received level, bw_3dB or bw_10dB, duration. For example:
+
+        ```{r}
+        #Remove click detections with 3dB bandwidth < 4 kHz
+        CCES_022<-dplyr::filter(CCES_022, bw_3dB>4)
+        ```
+
+        We also discussed adding a step to choose click detections from 1 channel, based on the highest received level.
+3.  Combine acoustic studies, then train and evaluate banter models at detection and event levels
+
+```{r}
+library(banter)
+
+#Combine acoustic studies 
+TrainingDataset<-export_banter(c(CCES_022, CCES_023))
+
+```
