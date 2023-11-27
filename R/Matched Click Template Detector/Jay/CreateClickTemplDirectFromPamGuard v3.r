@@ -28,37 +28,19 @@ setwd()
 # set truncation length of actual click (in msec, must be less than TemplDuration
 ClickDuration= 0.5
 # set template duration (in msec) including zero padding at each end
-TemplDuration=1   #(must be longer than ClickDuration or will generate error message)
+TemplDuration=1  #(must be longer than ClickDuration or will generate error message)
 if (ClickDuration > TemplDuration) stop("ERROR:  click duration is longer than template duration")
 lowfilter= 100000     #waveform bandpass filter lower value in Hz
-highfilter= 160000   #waveform bandpass filter higher value in Hz
+highfilter= 190000   #waveform bandpass filter higher value in Hz
 
 
 # DB and Binaries for processing
-# db <- 'G:/Odontocetes/NBHF/Classification/Keen_Dalls_Porpoise/Database/Bangarang_20150613_Dalls_Porpoise.sqlite3'
-# bin <- 'G:/Odontocetes/NBHF/Classification/Keen_Dalls_Porpoise/Binaries/Bangarang_20150613_DallsPorpoise/20150613'
-db <- 'H:/Odontocetes/NBHF/Databases/CalCURSeas_Dalls - Copy.sqlite3'
-# db <- 'D:/NBHF/NBHF_cces/databases/PamGuard64 2_00_16e NBHF CCES-Drift-21_JST_final.sqlite3'
-# db <- 'G:/Odontocetes/NBHF/Classification/Keen_Dalls_Porpoise/Database/Bangarang_20150613_Dalls_Porpoise.sqlite3'
-
-bin <-'H:/Odontocetes/NBHF/Binaries/CalCURSeas_Dalls - Copy'
-# bin <- 'D:/NBHF/NBHF_cces/binaries/Drift-21 (completed by JST)'
-# bin <- 'G:/Odontocetes/NBHF/Classification/Keen_Dalls_Porpoise/Binaries/Bangarang_20150613_DallsPorpoise/20150613'
-
-# db <- 'G:/Odontocetes/NBHF/Databases/OPPS_010_NBHF.sqlite3'
-# bin <- 'G:/Odontocetes/NBHF/Binaries/OPPS_010'
+db <- 'H:/Odontocetes/NBHF/TrainingData/PG2_02_09_CCES_022_Ksp_384kHz.sqlite3'
+bin <-'H:/Odontocetes/NBHF/TrainingData/PG2_02_09_CCES_022_Ksp_384kHz'
 # 
 # Input path where original acoustic files are located 
-Acoustic_files_folder <- 'D:/Raw/CalCURSeas/Array/Dalls Porpoise/20140811_155924'
-#Acoustic_files_folder <- 'E:/CCES_2018_RECORDINGS/Drift-21/1208791071'
-# Acoustic_files_folder <- 'G:/Odontocetes/NBHF/Classification/Keen_Dalls_Porpoise/Recordings'
-# Acoustic_files_folder <-'G:/Odontocetes/NBHF/Classification/OPPS_010_Harbor_Porpoise/Recordings'
-# 
-# Input path to the XML file exported from PAMGuard 
-xmlFile <- 'H:/Odontocetes/NBHF/PG settings/CalCurseas_Dalls_2.xml'
-# xmlFile <- 'D:/Click Templates/PAM2.02.02_CCES_021_NBHF.xml'
-# xmlFile <- 'G:/Odontocetes/NBHF/Classification/Keen_Dalls_Porpoise/PG/Bangarang_20150613_Dalls_Porpoise_Settings.xml'
-# xmlFile <- 'G:/Odontocetes/NBHF/Classification/OPPS_010_Harbor_Porpoise/OPPS_010_Pp.xml'
+# Acoustic_files_folder <- 'D:/Raw/CalCURSeas/Array/Dalls Porpoise/20140811_155924'
+Acoustic_files_folder <- 'F:/CCES_2018_384kHz/CCES_022/20181118'
 
 # Set path where wav clips will be stored 
 WavClipFolder <- 'C:/Users/anne.simonis/Documents/GitHub/Odontocetes/data/Species_template_csvs'
@@ -69,10 +51,10 @@ WavClipFolder <- 'C:/Users/anne.simonis/Documents/GitHub/Odontocetes/data/Specie
 ############################################################################
 
 # Run PAMpal (any settings here can be changed to your desired values)
-pps <- PAMpalSettings(db=db, binaries=bin, sr_hz='auto', filterfrom_khz=100, filterto_khz=160, winLen_sec=.0025, settings=xmlFile)
+pps <- PAMpalSettings(db=db, binaries=bin, sr_hz=384000, filterfrom_khz=100, filterto_khz=192, winLen_sec=.0025)
 # pps <- PAMpalSettings(db=db, binaries=bin, sr_hz='auto', filterfrom_khz=100, filterto_khz=160, winLen_sec=.0025, settings=xmlFile)
 # Process PAMGuard data into the Acoustic Study Object 
-data <- processPgDetections(pps, mode='db', id="CalCurseas_Dalls")
+data <- processPgDetections(pps, mode='db', id="Kogia")
 
 # Add GPS, Depth, and recording folder info (with original acoustic files)
 data <- addRecordings(data,folder = Acoustic_files_folder, log=FALSE)
@@ -80,7 +62,7 @@ data <- addRecordings(data,folder = Acoustic_files_folder, log=FALSE)
 # Filtering by event type (TC events)
 # goodData <- data
 goodData<- setSpecies(data, method='pamguard') # uses PAMGuard event type as species
-# goodData<- filter(goodData@events,species=='TC')
+goodData<- data
 
 ############################################################################
 # Create wav clips - may need to adjust duration (buffer) or channel 
@@ -91,7 +73,7 @@ clipDir <- WavClipFolder
 
 # create wav clips 
 wavs <- writeEventClips(goodData, 
-            buffer = c(0.0,0.04), # amount to include before and after event in seconds
+            buffer = c(0.1,0.04), # amount to include before and after event in seconds
             outDir = clipDir, # export directory 
             mode = 'detection', 
             channel = 1,

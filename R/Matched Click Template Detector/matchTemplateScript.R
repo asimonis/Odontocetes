@@ -1,3 +1,6 @@
+
+library(here)
+
 source(here('R','Matched Click Template Detector','matchTemplateFunctions.R'))
 # change if the set of templates changes
 templateNames <- c("ZC","BW43","BW39V","MS","BB","BW70")
