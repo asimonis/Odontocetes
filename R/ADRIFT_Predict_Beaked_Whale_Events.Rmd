@@ -1,0 +1,104 @@
+---
+title: 'ADRIFT: Beaked whale analysis'
+author: "Anne Simonis"
+date: "2024-01-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# When this rmarkdown file is knit:
+# FALSE means it will used saved .rds files instead of re-processing
+# TRUE will run everything from scratch - this will take a long time
+freshRun <- FALSE
+```
+
+## PAMpal Data Processing
+
+Start by loading the required packages
+
+```{r, load packages, message=FALSE}
+library("easypackages")
+libraries("PAMpal", "banter", "rfPermute", "kableExtra", "magick", "magrittr", "here")
+here()
+```
+
+1.  **Set up our PPS** (PAMPal Settings Object) for the EPacific dataset
+
+```{r, pampal settings, eval=freshRun}
+pps <- PAMpalSettings(db='Databases/', 
+                      binaries = 'Binaries/',
+                      sr_hz='auto', 
+                      winLen_sec=.0025, 
+                      filterfrom_khz=10, 
+                      filterto_khz=NULL)
+```
+
+2.  [If]{.underline} you have already run the processing code, ensure you have set 'freshRun = FALSE' at top of this document to read in the existing .rds file for downstream processing.
+
+    ```{r, read acoustic study, include=FALSE, eval=!freshRun}
+    data <- readRDS(paste0('H:/Odontocetes/Beaked whales/MTC/','matchTemplateStudy_CCES_014.rds'))
+    # Double check warning messages
+    print(getWarnings(data)$message)
+    ```
+
+3.  **Calculate Inter-Click Interval** (ICI).
+
+```{r, calculate ICI, eval=freshRun}
+data <- calculateICI(data, time='peakTime')
+```
+
+4.  **Add GPS data**: Add GPS data from PAMGuard table (2 hour threshold), then filter out data without GPS
+
+```{r, add GPS, eval=freshRun}
+data <- addGps(data, thresh = 7200)
+getWarnings(data)
+  
+# data <- filter(data, !is.na(Latitude))#filter out events w/o GPS
+data<-data %>% filter(Latitude>0)
+clicks <- getClickData(data)
+sum(is.na(clicks$Latitude))
+unique(clicks[is.na(clicks$Latitude), 'eventId'])#confirm there are no remaining events w/o GPS
+```
+
+5.  **Add Environmental Data**
+
+```{r, Add Environmental Data, eval=freshRun}
+#SST
+data <- matchEnvData(data, nc='jplMURSST41mday', var='sst')
+#Seafloor Depth
+data <- matchEnvData(data, nc='erdSrtm30plusSeafloorGradient', var='sea_floor_depth')
+#Seafloor Gradient
+data <- matchEnvData(data, nc='erdSrtm30plusSeafloorGradient', var='magnitude_gradient')
+
+```
+
+6.  Export data for BANTER. We will create two datasets: one with ICI and one without ICI, and save these for import into
+
+```{r, banter export, eval=freshRun}
+banter_data <- export_banter(data, 
+                             dropVars = c('All_ici', 'Click_Detector_3_ici', 'sea_floor_depth_mean', 'sst_mean', 'productivity_mean', 'chlorophyll_mean',  'magnitude_gradient_mean', 'Latitude', 'Longitude', 'gpsUncertainty'))
+saveRDS(banter_data, file=here('data','BeakedWhales','CCES014_banter_data.rds'))
+
+banter_data_ici <- export_banter(data, 
+                                 dropVars = c('sea_floor_depth_mean', 'sst_mean', 'productivity_mean', 'chlorophyll_mean',  'magnitude_gradient_mean','Latitude', 'Longitude', 'gpsUncertainty'))
+saveRDS(banter_data_ici, file=here('data','BeakedWhales','CCES014_banter_data_ici.rds'))
+
+banter_data_env <- export_banter(data, 
+                                 dropVars = c('Latitude', 'Longitude', 'gpsUncertainty'))
+saveRDS(banter_data_env, file=here('data','BeakedWhales','CCES014_banter_data_env.rds'))
+
+#save update of Acoustic Study
+saveRDS(data, 'epacific_study.rds')
+saveRDS(data, 'epacificALL_study.rds')
+```
+
+## 7. Predict with banter model
+
+```{r,banter predict, eval=freshRun}
+
+banter_model_ec<-readRDS('C:/Users/anne.simonis/Documents/GitHub/BANTER_BeakedWhales/epacific/epacific_banter_model_ec_t1e4s4_t1e4s4.rds')
+
+CCES014_Predict<-predict(banter_model_ec,banter_data)
+saveRDS(CCES014_Predict,here('data','BeakedWhales','CCES014_predictions.rds'))
+```

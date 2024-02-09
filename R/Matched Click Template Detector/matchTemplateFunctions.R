@@ -1,6 +1,8 @@
 library(dplyr)
 library(PamBinaries)
 library(PAMmisc)
+library(RSQLite)
+library(lubridate)
 
 loadTemplateBinary <- function(x, names, columns) {
     bin <- loadPamguardBinaryFile(x, skipLarge=TRUE, convertDate=FALSE)
@@ -87,7 +89,20 @@ addTemplateLabels <- function(x, db, names, thresh) {
     x
 }
 
-markGoodEvents <- function(x, nDets = 3, nSeconds=120, verbose=TRUE) {
+markGoodEvents <- function(x, minDets=3, maxSep=120, maxLength=120, nDets = 3, nSeconds=120, maxSeconds=120, verbose=TRUE) {
+    x <- PAMpal:::dropCols(x, c('templateEvent'))
+    if(!missing(nDets)) {
+        warning('"nDets" has been renamed to "minDets" for clarity')
+        minDets <- nDets
+    }
+    if(!missing(nSeconds)) {
+        warning('"nSeconds" has been renamed to "maxSep" for clarity')
+        maxSep <- nSeconds
+    }
+    if(!missing(maxSeconds)) {
+        warning('"maxSeconds" has been renamed to "maxLength" for clarity')
+        maxLength <- maxSeconds
+    }
     result <- bind_rows(
         lapply(
             split(x, x$templateMatch), function(d) {
@@ -98,15 +113,39 @@ markGoodEvents <- function(x, nDets = 3, nSeconds=120, verbose=TRUE) {
                 d <- arrange(d, UTC)
                 d$tDiff <- c(0, as.numeric(difftime(d$UTC[2:nrow(d)],
                                                     d$UTC[1:(nrow(d)-1)], units='secs')))
-                d$overtime <- d$tDiff > nSeconds 
+                d$overtime <- d$tDiff > maxSep
                 d$templateEvent <- as.character(cumsum(d$overtime))
                 eventDets <- table(d$templateEvent)
-                goodEvents <- names(eventDets)[eventDets >= nDets]
+                goodEvents <- names(eventDets)[eventDets >= minDets]
                 d$templateEvent[!d$templateEvent %in% goodEvents] <- 'none'
                 d <- PAMpal:::dropCols(d, c('tDiff', 'overtime'))
                 d
             }))
-    
+    # SHOULD REALLY RESET START TIMER AFTER EVERY NEW EVENT
+    result <- bind_rows(
+        lapply(
+            split(result, result$templateEvent), function(e) {
+                if(e$templateEvent[1] == 'none') {
+                    return(e)
+                }
+                tDiff <- c(0, as.numeric(difftime(e$UTC[2:nrow(e)],
+                                                  e$UTC[1:(nrow(e)-1)], units='secs')))
+                # e$tInterval <- floor(cumsum(e$tDiff) / maxLength)
+                thisLab <- 1
+                labs <- rep(thisLab, nrow(e))
+                cTimes <- cumsum(tDiff)
+                for(i in 1:nrow(e)) {
+                    if(cTimes[i] <= maxLength) {
+                        next
+                    }
+                    thisLab <- thisLab + 1
+                    labs[i:(length(labs))] <- thisLab
+                    cTimes <- cTimes - cTimes[i]
+                }
+                e$templateEvent <- paste0(e$templateEvent, '_', labs)
+                e
+            }
+        ))
     result$truePos <- (result$parentID != 'none') & (result$templateEvent != 'none')
     result$trueNeg <- (result$parentID == 'none') & (result$templateEvent == 'none')
     result$falsePos <- (result$parentID == 'none') & (result$templateEvent != 'none')
@@ -144,20 +183,72 @@ addTemplateEvents <- function(db, binFolder, data) {
     TRUE
 }
 
-summariseManualEvents <- function(x) {
+summariseManualEvents <- function(x, db=NULL) {
     result <- x %>%
-        filter(parentID != 'none') %>%
-        group_by(parentID) %>%
-        summarise(eventLabel = unique(eventLabel),
-                  nTemplate = sum(templateEvent != 'none'),
-                  pctTemplate = mean(templateEvent != 'none'),
-                  nDets = n())
-    nZero <- sum(result$nTemplate == 0)
+        filter(parentID != 'none')
+    if(nrow(result) > 0) {
+        result <- result %>%
+            group_by(parentID) %>%
+            summarise(eventLabel = unique(eventLabel),
+                      nTemplate = sum(templateEvent != 'none'),
+                      pctTemplate = mean(templateEvent != 'none'),
+                      nDets = n())
+        nZero <- sum(result$nTemplate == 0)
+    } else {
+        nZero <- 0
+    }
     cat('\n', nZero, ' out of ', nrow(result), ' manual event(s) had no template detections (FN).', sep='')
+    if(!is.null(db)) {
+        dbEv <- getDbEvent(db)
+        tempEv <- x %>%
+            filter(templateEvent != 'none') %>%
+            group_by(templateEvent) %>%
+            summarise(interval=interval(min(UTC), max(UTC))) %>%
+            ungroup()
+        dbEv <- markIntervalOverlap(dbEv, tempEv)
+        dbEv$parentID <- paste0('OE', dbEv$Id)
+        nZeroTime <- sum(dbEv$pctOverlap == 0)
+        cat('\n', nZeroTime, ' out of ', nrow(dbEv), ' manual event(s) had no time overlap (FN).', sep='')
+        if(nrow(result) == 0) {
+            return(dbEv)
+        }
+        result <- full_join(result, dbEv[c('parentID', 'secOverlap', 'pctOverlap')], by='parentID')
+    }
     result
 }
 
-summariseTemplateEvents <- function(x) {
+getDbEvent <- function(db) {
+    con <- dbConnect(db, drv=SQLite())
+    on.exit(dbDisconnect(con))
+    dbEv <- dbReadTable(con, 'Click_Detector_OfflineEvents')
+    dbEv <- dbEv[c('Id', 'UID', 'UTC', 'EventEnd', 'eventType', 'comment')]
+    dbEv$UTC <- PAMpal:::parseUTC(dbEv$UTC)
+    dbEv$EventEnd <- PAMpal:::parseUTC(dbEv$EventEnd)
+    dbEv$interval <- interval(dbEv$UTC, dbEv$EventEnd)
+    dbEv
+}
+
+markIntervalOverlap <- function(x, y) {
+    if(!'interval' %in% colnames(x) ||
+       !'interval' %in% colnames(y)) {
+        stop('"x" and "y" must have "interval" column')
+    }
+    x$secOverlap <- 0
+    for(i in 1:nrow(x)) {
+        whichOver <- which(int_overlaps(x$interval[i], y$interval))
+        if(length(whichOver) == 0) {
+            next
+        }
+        for(j in whichOver) {
+            thisInter <- intersect(x$interval[i], y$interval[j])
+            x$secOverlap[i] <- x$secOverlap[i] + int_length(thisInter)
+        }
+    }
+    x$pctOverlap <- x$secOverlap / int_length(x$interval)
+    x
+}
+
+summariseTemplateEvents <- function(x, db=NULL) {
     result <- x %>%
         filter(templateEvent != 'none') %>%
         group_by(templateEvent) %>%
@@ -175,19 +266,73 @@ summariseTemplateEvents <- function(x) {
     if(any(multiMatch)) {
         cat('\n', sum(multiMatch), ' template event(s) matched multiple manual events.', sep='')
     }
+    if(!is.null(db)) {
+        dbEv <- getDbEvent(db)
+        tempEv <- x %>%
+            filter(templateEvent != 'none') %>%
+            group_by(templateEvent) %>%
+            summarise(interval=interval(min(UTC), max(UTC))) %>%
+            ungroup()
+        tempEv <- markIntervalOverlap(tempEv, dbEv)
+        nZeroTime <- sum(tempEv$pctOverlap == 0)
+        cat('\n', nZeroTime, ' out of ', nrow(tempEv), ' template event(s) had no time overlap (FN).', sep='')
+        if(nrow(result) == 0) {
+            return(tempEv)
+        }
+        result <- full_join(result, tempEv[c('templateEvent', 'secOverlap', 'pctOverlap')], by='templateEvent')
+    }
     result
 }
 
+summaryPlotData <- function(x, templateNames, threshVals) {
+  matchCols <- paste0(templateNames, '_match')
+  x <- split(x, x$templateEvent)
+  x <- bind_rows(lapply(x, function(ev) {
+    if(ev$templateEvent[1] == 'none') {
+      return(NULL)
+    }
+    result <- vector('list', length=length(matchCols))
+    names(result) <- matchCols
+    for(i in seq_along(result)) {
+      result[[i]] <- mean(ev[[names(result)[i]]], na.rm=TRUE)
+    }
+    result$nDets <- nrow(ev)
+    result$templateEvent <- ev$templateEvent[1]
+    result$templateGood <- ev$templateGood[1]
+    evLabel <- unique(ev$eventLabel)
+    if(length(evLabel) > 1) {
+      evLabel <- evLabel[evLabel != 'none']
+    }
+    result$eventLabel <- evLabel
+    result
+  }))
+  x <- tidyr::pivot_longer(x, cols=all_of(matchCols), names_to='Template', values_to='MeanScore')
+  x
+}
 
-timeToStartEnd <- function(time, length = 120) {
-  range <- range(time)
-  lenSecs <- as.numeric(difftime(range[2], range[1], units='secs'))
-  # Figure out how many events of length "length" we can have
-  numSplits <- ceiling(lenSecs / length)
-  # Each event starts some multiple of length from the original start
-  start <- range[1] + length * 0:(numSplits-1)
-  # Doesnt matter that the end is different than the actual event end
-  # here since we are just using these times to filter later
-  end <- start + length
-  list(start=start, end=end)
+
+summaryPlotData <- function(x, templateNames, threshVals) {
+  matchCols <- paste0(templateNames, '_match')
+  x <- split(x, x$templateEvent)
+  x <- bind_rows(lapply(x, function(ev) {
+    if(ev$templateEvent[1] == 'none') {
+      return(NULL)
+    }
+    result <- vector('list', length=length(matchCols))
+    names(result) <- matchCols
+    for(i in seq_along(result)) {
+      result[[i]] <- mean(ev[[names(result)[i]]], na.rm=TRUE)
+    }
+    result$nDets <- nrow(ev)
+    result$templateEvent <- ev$templateEvent[1]
+    result$templateGood <- ev$templateGood[1]
+    evLabel <- unique(ev$eventLabel)
+    if(length(evLabel) > 1) {
+      evLabel <- evLabel[evLabel != 'none']
+    }
+    result$eventLabel <- evLabel
+    result
+  }))
+  x <- tidyr::pivot_longer(x, cols=all_of(matchCols), names_to='Template', values_to='MeanScore')
+  x
 }
