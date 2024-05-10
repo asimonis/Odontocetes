@@ -3,12 +3,12 @@ library(PAMpal)
 
 
 ###USER-DEFINED FIELDS####
-baseDir <- 'H:/Odontocetes/Beaked whales/MTC/'  
-DriftName<-'PG_2_02_09_CCES_012'
-binFolder <- paste0(baseDir,DriftName)    #Folder with binaries
+baseDir <- 'H:/Odontocetes/Beaked whales/'  
+DriftName<-'PG_2_02_09_CCES_020_288kHz'
+binFolder <- paste0(baseDir,'Binaries/','PG_2_02_09_CCES_020_Dec288kHz')    #Folder with binaries
 # this database should be a COPY of the original because we will add events to it later
-db <- paste0(baseDir,DriftName,' - Copy.sqlite3')
-OrigDB<-'H:/Odontocetes/Beaked whales/CCES_2018_Databases/PamGuard64 2_00_16e Drift-12_Final.sqlite3'
+db <- paste0(baseDir,'Databases/',DriftName,' - Copy.sqlite3')
+OrigDB<-'H:/Odontocetes/Beaked whales/CCES_2018_Databases/PamGuard64 2_00_16e Drift-15_Final.sqlite3'
 ###########################
 
 
@@ -22,13 +22,14 @@ extraCols <- c(paste0(templateNames, '_match'))
 # so that you don't have to reprocess in future
 saveFile <- paste0(baseDir,DriftName,'.rds')
 
-# allData <- loadTemplateFolder(binFolder, names=templateNames, extraCols=extraCols, file=saveFile)
+allData <- loadTemplateFolder(binFolder, names=templateNames, extraCols=extraCols, file=saveFile)
 
 allData<-readRDS(saveFile)  #load saved binary info
 
 # these are in order of "templateNames" above. Can look at data and see if any of these need to
 # be raised/lowered
 threshVals <- c(.55, .45, .6, .5, .25, .6)
+# threshVals <- rep(.01,6)
 allData <- addTemplateLabels(allData, db=NULL, templateNames, threshVals)
 # minDets is minimum detections to count as an event, maxSep is max time between detections
 # before an event is ended. maxLength is maximum length of an event
