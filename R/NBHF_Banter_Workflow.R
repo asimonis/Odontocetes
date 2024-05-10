@@ -8,6 +8,7 @@ library(densityClust)
 library(purrr)
 library(stringr)
 library(tibble)
+library(rfPermute)
 library(tidyr)
 
 source('C:/Users/anne.simonis/Documents/GitHub/identidrift/R/make-model.R')
@@ -38,13 +39,15 @@ ADRIFT_NBHF<-calculateICI(ADRIFT_NBHF,time='UTC')
 ADRIFT_NBHF<-rm_dup_evs(ADRIFT_NBHF)
 
 #Export to Banter and leave out false positives
-NBHFbanter<-export_banter(ADRIFT_NBHF,dropSpecies = 'FP')
+NBHFdf<-export_banter(ADRIFT_NBHF,dropSpecies = 'FP')
 
 #Assign new click detectors (hirange >125 kHz & lorange < 125 kHz)
 #Use Jackson's function 'splitcalls' from identidrift repo 
-NBHFbanter<-split_calls(NBHFbanter)
+NBHFdf<-split_calls(NBHFdf)
 
 #Load Banter Model
 bant<-readRDS('H:/Odontocetes/NBHF/BANTER/bant_VFB_2024May10.rds')
+bant.rf <- getBanterModel(bant)
+plotPredictedProbs(bant.rf, bins = 30, plot = TRUE)
 
-NBHFpredict<-predict(bant,NBHFbanter)
+NBHFpredict<-predict(bant,NBHFdf)
