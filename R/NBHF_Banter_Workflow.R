@@ -48,6 +48,7 @@ NBHFdf<-split_calls(NBHFdf)
 #Load Banter Model
 bant<-readRDS('H:/Odontocetes/NBHF/BANTER/bant_VFB_2024May10.rds')
 bant.rf <- getBanterModel(bant)
+
 plotPredictedProbs(bant.rf, bins = 30, plot = TRUE)
 
 NBHFpredict<-predict(bant,NBHFdf)
