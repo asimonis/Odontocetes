@@ -10,6 +10,7 @@ library(stringr)
 library(tibble)
 library(rfPermute)
 library(tidyr)
+library(sjPlot)
 
 source('C:/Users/anne.simonis/Documents/GitHub/identidrift/R/make-model.R')
 source('C:/Users/anne.simonis/Documents/GitHub/identidrift/R/make-study.R')
@@ -47,7 +48,57 @@ NBHFdf<-split_calls(NBHFdf)
 
 #Load Banter Model
 bant<-readRDS('H:/Odontocetes/NBHF/BANTER/bant_VFB_2024May10.rds')
-bant.rf <- getBanterModel(bant)
+
+#Load Training Dataset
+load("~/GitHub/identidrift/data/train.rda")
+
+#Create summary table of training data
+#Columns: Species, Number of Events, Median clicks per event (IQR)
+ClicksKs<-getClickData(train$ks)
+ClicksPd<-getClickData(train$pd)
+ClicksPp<-getClickData(train$pp)
+
+SumKs<-ClicksKs %>%
+  group_by(eventId) %>%
+  reframe(NClicks = length(peak)) %>%
+  reframe(NEvents=length(unique(eventId)),
+          MedClicks = paste0(median(NClicks),' (',round(quantile(NClicks,c(.25))),'-',round(quantile(NClicks,c(.75))),')'),
+          TotClicks=sum(NClicks))%>%
+  mutate(Species='Ks')
+
+SumPd<-ClicksPd %>%
+  group_by(eventId) %>%
+  reframe(NClicks = length(peak)) %>%
+  reframe(NEvents=length(unique(eventId)),
+          MedClicks = paste0(median(NClicks),' (',round(quantile(NClicks,c(.25))),'-',round(quantile(NClicks,c(.75))),')'),
+          TotClicks=sum(NClicks))%>%
+  mutate(Species='Pd')
+
+SumPp<-ClicksPp %>%
+  group_by(eventId) %>%
+  reframe(NClicks = length(peak)) %>%
+  reframe(NEvents=length(unique(eventId)),
+          MedClicks = paste0(median(NClicks),' (',round(quantile(NClicks,c(.25))),'-',round(quantile(NClicks,c(.75))),')'),
+          TotClicks=sum(NClicks)) %>%
+  mutate(Species='Pp')
+
+
+TrainTable<-rbind(SumKs,SumPd,SumPp)
+TrainTable <- TrainTable[, c("Species", "NEvents", "MedClicks","TotClicks")]
+
+ColHeaders <-c('Species','N Events','Event Clicks','Total Clicks')
+
+
+tab_df(TrainTable,alternate.rows=T,
+       title="Summary of NBHF training dataset, including acoustic events with
+       visually-verified species identification for Kogia (Ks), Dall's porpoise 
+       (Pd), and harbor porpoise (Pp)). Reported values include the total number 
+       of acoustic events (N Events), median number of clicks per event, with the
+       inter-quartile range in parenthesis, and the total number of clicks 
+       (Total Clicks) for each species.",col.header = ColHeaders)
+
+
+
 
 plotPredictedProbs(bant.rf, bins = 30, plot = TRUE)
 
