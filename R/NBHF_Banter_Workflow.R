@@ -19,23 +19,25 @@ freshRun = FALSE
 
 if(freshRun==TRUE){
 #Generate Acoustic Study
-# dbFolder<-'H:/Odontocetes/NBHF/Labeled Events/Databases'
-# binFolder<-'H:/Odontocetes/NBHF/Binaries'
-  dbFolder<-'/Volumes/ADRIFT_Analysis/Odontocetes/NBHF/Labeled Events/Databases/'
-  binFolder<-'/Volumes/ADRIFT_Analysis/Odontocetes/NBHF/Binaries/'
-  
+dbFolder<-'H:/Odontocetes/NBHF/Labeled Events/Databases'
+binFolder<-'H:/Odontocetes/NBHF/Binaries'
+  # dbFolder<-'/Volumes/ADRIFT_Analysis/Odontocetes/NBHF/Labeled Events/Databases/'
+  # binFolder<-'/Volumes/ADRIFT_Analysis/Odontocetes/NBHF/Binaries/'
+  # 
 #Add GPS to databases
-gpsFolder<-'/Users/ASimonis/Documents/ADRIFT Analysis/GPS_CSV'
+# gpsFolder<-'/Users/ASimonis/Documents/ADRIFT Analysis/GPS_CSV'
+gpsFolder<-'H:/GPS Files/GPS_CSV'
 dbFiles<-list.files(path=dbFolder,pattern='.sqlite3',full.names = TRUE)
 gpsFiles<-list.files(path=gpsFolder,pattern='.csv',full.names=TRUE)
 
 dbDep<- str_extract(dbFiles,'ADRIFT_\\d{3}')
 gpsDep<-str_extract(gpsFiles,'ADRIFT_\\d{3}')
 
-for(d in 1:nrow(dbFiles)){
-gpsInd<-which(gpsDep==dbDep[d])
+for(d in 1:length(dbFiles)){
+  gpsInd<-which(gpsDep==dbDep[d])
   addPgGps(dbFiles[d],gpsFiles[gpsInd],source='csv')
 }
+ADRIFT_NBHF<-addGps(ADRIFT_NBHF)
 
 pps <- PAMpalSettings(dbFolder, binFolder, sr_hz='auto', filterfrom_khz=100, filterto_khz=160, winLen_sec=.0025)
 ADRIFT_NBHF <- processPgDetections(pps, mode='db')
@@ -43,16 +45,16 @@ ADRIFT_NBHF <- setSpecies(ADRIFT_NBHF , method = 'pamguard')
 # new "FP" and "TP" events in addition to originals
 table(species(ADRIFT_NBHF))
 
-saveRDS(ADRIFT_NBHF, 'H:/Odontocetes/NBHF/Labeled Events/AcousticStudy_NBHF_ADRIFT.rds')}else{
-  ADRIFT_NBHF<-readRDS('H:/Odontocetes/NBHF/Labeled Events/AcousticStudy_NBHF_ADRIFT.rds')
-}
-
 #Only keep NBHF events from Ch 2
 ADRIFT_NBHF<-filter(ADRIFT_NBHF, species=='NBHF',Channel==2)
 ADRIFT_NBHF<-calculateICI(ADRIFT_NBHF,time='UTC')
 
 #Remove duplicate events
 ADRIFT_NBHF<-rm_dup_evs(ADRIFT_NBHF)
+
+saveRDS(ADRIFT_NBHF, here('data','AcousticStudy_NBHF_ADRIFT_wGPS_wICI.rds'))}else{
+  ADRIFT_NBHF<-readRDS('H:/Odontocetes/NBHF/Labeled Events/AcousticStudy_NBHF_ADRIFT_wGPS_wICI.rds')
+}
 
 #Export to Banter and leave out false positives
 NBHFdf<-export_banter(ADRIFT_NBHF,dropSpecies = 'FP')
