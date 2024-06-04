@@ -52,7 +52,7 @@ ADRIFT_NBHF<-calculateICI(ADRIFT_NBHF,time='UTC')
 #Remove duplicate events
 ADRIFT_NBHF<-rm_dup_evs(ADRIFT_NBHF)
 
-saveRDS(ADRIFT_NBHF, here('data','AcousticStudy_NBHF_ADRIFT_wGPS_wICI.rds'))}else{
+saveRDS(ADRIFT_NBHF, 'H:/Odontocetes/NBHF/Labeled Events/AcousticStudy_NBHF_ADRIFT_wGPS_wICI.rds')}else{
   ADRIFT_NBHF<-readRDS('H:/Odontocetes/NBHF/Labeled Events/AcousticStudy_NBHF_ADRIFT_wGPS_wICI.rds')
 }
 
